@@ -15,7 +15,7 @@ return {
   mod_name = {
     en = "Camera Freeflight",
     ["zh-cn"] = "自由飞行视角",
-    ru = "Camera Freeflight",
+    ru = "Свободный полет камеры",
   },
   mod_description = {
     en = "Allows detached camera freeflight.",
