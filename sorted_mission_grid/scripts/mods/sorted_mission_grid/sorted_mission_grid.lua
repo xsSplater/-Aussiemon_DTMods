@@ -40,8 +40,13 @@ local function mission_sort_asc_func(k1, k2)
     elseif k1.resistance == k2.resistance then
 
       -- Sort by circumstance or lack of
-      local k1_circumstance_value = mod.circumstance_value[k1.circumstance] or 3
-      local k2_circumstance_value = mod.circumstance_value[k2.circumstance] or 3
+      local default_circumstance_value = mod.circumstance_value["default"]
+      local k1_circumstance_value = mod.circumstance_value[k1.circumstance]
+          or (k1.circumstance and default_circumstance_value + 1)
+          or default_circumstance_value
+      local k2_circumstance_value = mod.circumstance_value[k2.circumstance]
+          or (k2.circumstance and default_circumstance_value + 1)
+          or default_circumstance_value
 
       if k1_circumstance_value < k2_circumstance_value then
         return true
@@ -89,8 +94,13 @@ local function mission_sort_desc_func(k1, k2)
     elseif k1.resistance == k2.resistance then
 
       -- Sort by circumstance or lack of
-      local k1_circumstance_value = mod.circumstance_value[k1.circumstance] or 3
-      local k2_circumstance_value = mod.circumstance_value[k2.circumstance] or 3
+      local default_circumstance_value = mod.circumstance_value["default"]
+      local k1_circumstance_value = mod.circumstance_value[k1.circumstance]
+          or (k1.circumstance and default_circumstance_value + 1)
+          or default_circumstance_value
+      local k2_circumstance_value = mod.circumstance_value[k2.circumstance]
+          or (k2.circumstance and default_circumstance_value + 1)
+          or default_circumstance_value
 
       if k1_circumstance_value > k2_circumstance_value then
         return true
@@ -151,7 +161,7 @@ local function clear_mission_board(view)
   view:_set_selected_quickplay()
 
   local mission_widgets = view._mission_widgets
-  for i = #mission_widgets, 0, -1 do
+  for i = #mission_widgets, 1, -1 do
     local widget = mission_widgets[i]
 
     if widget and not widget.content.exit_anim_id then
@@ -166,12 +176,34 @@ end
 local function set_special_widget_positions(view, board_type)
   local custom_positions = mod.custom_mission_positions[board_type or "normal"]
 
-  view._quickplay_widget.offset[1] = custom_positions.quickplay_mission_position[1]
-  view._quickplay_widget.offset[2] = custom_positions.quickplay_mission_position[2]
+  if view._quickplay_widget then
+    local widget = view._quickplay_widget
+    widget.offset[1] = custom_positions.quickplay_mission_position[1]
+    widget.offset[2] = custom_positions.quickplay_mission_position[2]
+  end
 
   if view._flash_mission_widget then
-    view._flash_mission_widget.offset[1] = custom_positions.flash_mission_position[1]
-    view._flash_mission_widget.offset[2] = custom_positions.flash_mission_position[2]
+    local widget = view._flash_mission_widget
+    widget.offset[1] = custom_positions.flash_mission_position[1]
+    widget.offset[2] = custom_positions.flash_mission_position[2]
+  end
+
+  if view._mission_type_selection_widget then
+    local widget = view._mission_type_selection_widget
+    widget.offset[1] = custom_positions.mission_type_selection_position[1]
+    widget.offset[2] = custom_positions.mission_type_selection_position[2]
+  end
+
+  if view._widgets_by_name.story_mission_view_button_frame then
+    local widget = view._widgets_by_name.story_mission_view_button_frame
+    widget.offset[1] = custom_positions.story_mission_view_frame_position[1]
+    widget.offset[2] = custom_positions.story_mission_view_frame_position[2]
+  end
+
+  if view._widgets_by_name.story_mission_view_button then
+    local widget = view._widgets_by_name.story_mission_view_button
+    widget.offset[1] = custom_positions.story_mission_view_button_position[1]
+    widget.offset[2] = custom_positions.story_mission_view_button_position[2]
   end
 end
 
@@ -259,6 +291,11 @@ mod:hook_safe(CLASS.MissionBoardView, "_callback_mission_widget_exit_done", func
 
     self:_join_mission_data()
   end
+end)
+
+-- Handle potential crashes when removing widgets
+mod:hook(CLASS.MissionBoardView, "_destroy_mission_widget", function (func, self, widget, ...)
+  return mod:pcall(func, self, widget, ...)
 end)
 
 -- ##########################################################

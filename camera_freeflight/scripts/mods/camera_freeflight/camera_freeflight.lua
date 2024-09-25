@@ -20,22 +20,6 @@ local Network = Network
 local ScriptUnit = ScriptUnit
 local Vector3 = Vector3
 
-local null_service = {
-  get = function (self, action_name)
-    local input_type = type(self.input:get(action_name))
-
-    if input_type == "number" then
-      return 0
-    elseif input_type == "boolean" then
-      return false
-    elseif input_type == "userdata" then
-      return Vector3.zero()
-    else
-      mod:error("unsupported input type %q for action %q", input_type, action_name)
-    end
-  end
-}
-
 local null_input_types = {
   move_right = true,
   move_left = true,
@@ -58,6 +42,14 @@ end
 
 local pressed_teleport_player_to_camera = function()
   return false -- Keyboard.pressed(Keyboard.button_index("]"))
+end
+
+local pressed_roll_left = function()
+  return 0 -- xbox_controller_right_shoulder
+end
+
+local pressed_roll_right = function()
+  return 0 -- xbox_controller_left_shoulder
 end
 
 local is_server = function()
@@ -83,6 +75,14 @@ local teleport_player_to_camera = function(cam, player)
   pos = pos + x + y + z
   
   PlayerMovement.teleport(player, pos, rot)
+end
+
+local null_movement_hook = function (func, self, action_name, ...)
+  if _freeflight_data.enable_freeflight and null_input_types[action_name] then
+    return 0
+  end
+
+  return func(self, action_name, ...)
 end
 
 mod.use_3p_hub_camera = function(self)
@@ -122,6 +122,9 @@ mod.set_3p = function(self, enabled)
 end
 
 mod.toggle_freeflight = function(self)
+  if Managers.ui:chat_using_input() then
+    return
+  end
   _freeflight_data.enable_freeflight = not _freeflight_data.enable_freeflight
 end
 
@@ -135,6 +138,12 @@ mod:hook_require(free_flight_default_input_path, function(instance)
   end
   if not instance.teleport_player_to_camera then
     instance.teleport_player_to_camera = pressed_teleport_player_to_camera
+  end
+  if not instance.roll_left then
+    instance.roll_left = pressed_roll_left
+  end
+  if not instance.roll_right then
+    instance.roll_right = pressed_roll_right
   end
 end)
 
@@ -179,20 +188,11 @@ mod:hook(CLASS.FreeFlightDefaultInput, "get", function (func, self, action_name,
   return func(self, action_name, ...)
 end)
 
--- Fix vanilla bug with null service
-mod:hook_origin(CLASS.FreeFlightDefaultInput, "null_service", function (self)
-  null_service.input = self
-  return null_service
-end)
-
 -- Detach player movement from camera
-mod:hook(CLASS.InputService, "get", function (func, self, action_name, ...)
-  if _freeflight_data.enable_freeflight and null_input_types[action_name] then
-    return 0
-  end
+mod:hook(CLASS.InputService, "_get", null_movement_hook)
 
-  return func(self, action_name, ...)
-end)
+-- Detach simulated player movement from camera
+mod:hook(CLASS.InputService, "_get_simulate", null_movement_hook)
 
 -- Allow freeflight when gameplay starts
 mod:hook_safe(CLASS.StateGameplay, "on_enter", function (self)
